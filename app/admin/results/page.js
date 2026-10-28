@@ -6,19 +6,23 @@ import { supabase } from '@/lib/supabase';
 export default function AdminResults() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState(''); // সার্চের জন্য নতুন স্টেট
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchResults();
   }, []);
 
   const fetchResults = async () => {
+    setLoading(true);
+    // সেফ কুয়েরি যাতে রিলেশন বা কলাম না থাকলেও অ্যাপ ক্র্যাশ না করে
     const { data, error } = await supabase
       .from('results')
       .select(`
         id,
         marks,
         total_marks,
+        student_id,
+        exam_id,
         profiles (full_name, batch),
         exams (title)
       `);
@@ -31,7 +35,6 @@ export default function AdminResults() {
     setLoading(false);
   };
 
-  // সার্চের ইনপুট অনুযায়ী রেজাল্ট ফিল্টার করা হচ্ছে
   const filteredResults = results.filter((result) => {
     const studentName = result.profiles?.full_name?.toLowerCase() || '';
     return studentName.includes(searchQuery.toLowerCase());
@@ -42,7 +45,6 @@ export default function AdminResults() {
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <h2 className="text-2xl font-bold text-gray-800">Student Results</h2>
         
-        {/* সার্চ বার */}
         <div className="relative w-full md:w-72">
           <input
             type="text"
@@ -63,7 +65,7 @@ export default function AdminResults() {
         </div>
       ) : filteredResults.length === 0 ? (
         <div className="text-center py-10 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-          {searchQuery ? 'No student found with that name.' : 'No results found yet.'}
+          {searchQuery ? 'No student found with that name.' : 'No results found yet. (Students need to complete an exam first)'}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -80,7 +82,7 @@ export default function AdminResults() {
             </thead>
             <tbody>
               {filteredResults.map((result, index) => {
-                const percentage = (result.marks / result.total_marks) * 100;
+                const percentage = result.total_marks ? (result.marks / result.total_marks) * 100 : 0;
                 const isPass = percentage >= 40;
 
                 return (

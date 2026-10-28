@@ -223,3 +223,32 @@ export default function StudentExamPage() {
     </Suspense>
   );
 }
+<div className="mt-8 space-y-4">
+  <h3 className="text-xl font-bold text-gray-800">Question Review & Correct Answers</h3>
+  
+  {questions.map((q, idx) => {
+    const studentAnswer = userAnswers[q.id]; // স্টুডেন্ট যে উত্তর সিলেক্ট করেছিল
+    const correctAnswer = q.correct_answer;  // ডাটাবেজে থাকা সঠিক উত্তর
+    const isCorrect = studentAnswer === correctAnswer;
+
+    return (
+      <div key={q.id} className={`p-4 rounded-xl border ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+        <p className="font-semibold text-gray-900 mb-2">
+          {idx + 1}. {q.question_text}
+        </p>
+        
+        <div className="text-sm space-y-1">
+          <p className={isCorrect ? 'text-green-700 font-medium' : 'text-red-600 font-medium'}>
+            Your Answer: {studentAnswer || 'Not Answered'}
+          </p>
+          
+          {!isCorrect && (
+            <p className="text-green-800 font-bold">
+              Correct Answer: {correctAnswer}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  })}
+</div>
