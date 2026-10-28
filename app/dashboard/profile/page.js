@@ -54,16 +54,23 @@ export default function StudentProfile() {
 
     const { data: { session } } = await supabase.auth.getSession();
 
+    if (!session) {
+      setMessage('❌ Error: User not authenticated!');
+      setUpdating(false);
+      return;
+    }
+
+    // .update() এর পরিবর্তে .upsert() ব্যবহার করা হলো যাতে ডেটা না থাকলে অটো তৈরি হয় ও সেভ থাকে
     const { error } = await supabase
       .from('profiles')
-      .update({
+      .upsert({
+        id: session.user.id,
         full_name: formData.full_name,
         batch: formData.batch,
         course: formData.course,
         avatar_url: formData.avatar_url,
         updated_at: new Date()
-      })
-      .eq('id', session.user.id);
+      });
 
     if (error) {
       setMessage('❌ Error updating profile: ' + error.message);
