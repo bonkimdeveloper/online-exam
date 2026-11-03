@@ -33,6 +33,8 @@ export default function StudentProfile() {
       error: authError,
     } = await supabase.auth.getUser();
 
+    console.log('🔍 FETCH -> user:', user?.id, '| authError:', authError);
+
     if (authError || !user) {
       router.push('/student-login');
       return;
@@ -42,7 +44,9 @@ export default function StudentProfile() {
       .from('profiles')
       .select('full_name, batch, course, avatar_url')
       .eq('id', user.id)
-      .maybeSingle(); // ✅ .single() নয়
+      .maybeSingle();
+
+    console.log('🔍 FETCH -> data:', data, '| error:', error);
 
     if (error) {
       setMessage('❌ Could not load profile: ' + error.message);
@@ -69,6 +73,8 @@ export default function StudentProfile() {
       error: authError,
     } = await supabase.auth.getUser();
 
+    console.log('💾 SAVE -> user:', user?.id, '| authError:', authError);
+
     if (authError || !user) {
       setMessage('❌ User not authenticated! Please login again.');
       setMessageType('error');
@@ -82,15 +88,18 @@ export default function StudentProfile() {
       batch: formData.batch.trim(),
       course: formData.course.trim(),
       avatar_url: formData.avatar_url.trim(),
-      updated_at: new Date().toISOString(), // ✅ ISO string
+      updated_at: new Date().toISOString(),
     };
 
-    // ✅ onConflict + select() দিয়ে save verify করা হচ্ছে
+    console.log('💾 SAVE -> payload:', payload);
+
     const { data, error } = await supabase
       .from('profiles')
       .upsert(payload, { onConflict: 'id' })
       .select()
       .maybeSingle();
+
+    console.log('💾 SAVE -> returned data:', data, '| error:', error);
 
     if (error) {
       setMessage('❌ Error updating profile: ' + error.message);
@@ -103,7 +112,6 @@ export default function StudentProfile() {
     } else {
       setMessage('✅ Profile saved successfully!');
       setMessageType('success');
-      // সেভ হওয়া ডেটা দিয়ে ফর্ম রিফ্রেশ
       setFormData({
         full_name: data.full_name || '',
         batch: data.batch || '',

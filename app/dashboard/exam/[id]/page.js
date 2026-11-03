@@ -30,7 +30,8 @@ function ExamContent() {
 
       if (examData) {
         setExam(examData);
-        setTimeLeft(examData.duration_minutes * 60);
+        // duration_minutes কে সেকেন্ডে রূপান্তর (নিরাপদ ডিফলต์ ৩০ মিনিট যদি না থাকে)
+        setTimeLeft((examData.duration_minutes || 30) * 60);
       }
 
       const { data: qData } = await supabase
@@ -89,11 +90,15 @@ function ExamContent() {
 
     setResult(examResult);
 
+    // ইউজারের সেশন নিয়ে রেজাল্ট টেবিলে সেভ করা হচ্ছে
+    const { data: { session } } = await supabase.auth.getSession();
+    
     await supabase.from('results').insert([
       {
         exam_id: examId,
-        score: score,
-        total_questions: totalQuestions,
+        student_id: session?.user?.id || null,
+        marks: score,
+        total_marks: totalQuestions,
       },
     ]);
   };
@@ -128,37 +133,70 @@ function ExamContent() {
       </div>
 
       {submitted ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-emerald-200 p-8 text-center">
-          <Award className="h-16 w-16 text-emerald-600 mx-auto mb-4" />
-          <h2 className="text-3xl font-bold text-slate-800 mb-2">Exam Submitted Successfully!</h2>
-          <p className="text-slate-600 mb-6">Here is your performance summary:</p>
-          
-          <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto mb-8">
-            <div className="bg-slate-50 p-4 rounded-xl border">
-              <p className="text-xs text-slate-500 font-semibold">Total Questions</p>
-              <p className="text-2xl font-bold text-slate-800">{result.totalQuestions}</p>
+        <div className="bg-white rounded-2xl shadow-sm border border-emerald-200 p-8">
+          <div className="text-center mb-8">
+            <Award className="h-16 w-16 text-emerald-600 mx-auto mb-4" />
+            <h2 className="text-3xl font-bold text-slate-800 mb-2">Exam Submitted Successfully!</h2>
+            <p className="text-slate-600 mb-6">Here is your performance summary:</p>
+            
+            <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto mb-6">
+              <div className="bg-slate-50 p-4 rounded-xl border">
+                <p className="text-xs text-slate-500 font-semibold">Total Questions</p>
+                <p className="text-2xl font-bold text-slate-800">{result.totalQuestions}</p>
+              </div>
+              <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+                <p className="text-xs text-emerald-600 font-semibold">Correct Answers</p>
+                <p className="text-2xl font-bold text-emerald-700">{result.score}</p>
+              </div>
+              <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-200">
+                <p className="text-xs text-indigo-600 font-semibold">Score (%)</p>
+                <p className="text-2xl font-bold text-indigo-700">{result.percentage}%</p>
+              </div>
             </div>
-            <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
-              <p className="text-xs text-emerald-600 font-semibold">Correct Answers</p>
-              <p className="text-2xl font-bold text-emerald-700">{result.score}</p>
-            </div>
-            <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-200">
-              <p className="text-xs text-indigo-600 font-semibold">Score (%)</p>
-              <p className="text-2xl font-bold text-indigo-700">{result.percentage}%</p>
-            </div>
+
+            {/* স্টুডেন্ট যেন সরাসরি তার নিজের ড্যাশবোর্ডে ফিরে যায় */}
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl transition-colors"
+            >
+              Go Back to Dashboard
+            </button>
           </div>
 
-          <button
-            onClick={() => router.push('/admin/manage-exams')}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl transition-colors"
-          >
-            Go Back
-          </button>
+          {/* কোশ্চেন রিভিউ এবং সঠিক উত্তর দেখার সেকশন */}
+          <div className="mt-10 border-t pt-6 space-y-4 text-left">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Question Review & Correct Answers</h3>
+            
+            {questions.map((q, idx) => {
+              const studentAnswer = answers[q.id]; 
+              const correctAnswer = q.correct_answer;  
+              const isCorrect = studentAnswer === correctAnswer;
+
+              return (
+                <div key={q.id} className={`p-4 rounded-xl border ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                  <p className="font-semibold text-gray-900 mb-2">
+                    {idx + 1}. {q.question_text}
+                  </p>
+                  
+                  <div className="text-sm space-y-1">
+                    <p className={isCorrect ? 'text-green-700 font-medium' : 'text-red-600 font-medium'}>
+                      Your Answer: {studentAnswer || 'Not Answered'}
+                    </p>
+                    
+                    {!isCorrect && (
+                      <p className="text-green-800 font-bold">
+                        Correct Answer: {correctAnswer}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       ) : (
         <div className="space-y-6">
           {questions.map((q, index) => {
-            // সেফটি চেকসহ অপশন পার্স করার লজিক
             let optionsList = [];
             try {
               if (Array.isArray(q.options)) {
@@ -223,32 +261,3 @@ export default function StudentExamPage() {
     </Suspense>
   );
 }
-<div className="mt-8 space-y-4">
-  <h3 className="text-xl font-bold text-gray-800">Question Review & Correct Answers</h3>
-  
-  {questions.map((q, idx) => {
-    const studentAnswer = userAnswers[q.id]; // স্টুডেন্ট যে উত্তর সিলেক্ট করেছিল
-    const correctAnswer = q.correct_answer;  // ডাটাবেজে থাকা সঠিক উত্তর
-    const isCorrect = studentAnswer === correctAnswer;
-
-    return (
-      <div key={q.id} className={`p-4 rounded-xl border ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-        <p className="font-semibold text-gray-900 mb-2">
-          {idx + 1}. {q.question_text}
-        </p>
-        
-        <div className="text-sm space-y-1">
-          <p className={isCorrect ? 'text-green-700 font-medium' : 'text-red-600 font-medium'}>
-            Your Answer: {studentAnswer || 'Not Answered'}
-          </p>
-          
-          {!isCorrect && (
-            <p className="text-green-800 font-bold">
-              Correct Answer: {correctAnswer}
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  })}
-</div>
